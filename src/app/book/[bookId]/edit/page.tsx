@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import BackButton from "@/components/BackButton";
 import BookingForm from "@/components/BookingForm";
 import { requireSession } from "@/lib/auth";
 import { getBooking, getBookingRules, getRooms } from "@/lib/data";
@@ -17,6 +18,7 @@ export default async function EditBookingPage({ params }: PageProps<"/book/[book
 
   return (
     <div className="space-y-4">
+      <BackButton href={`/book/${b.bookingId}`} label="รายละเอียดการจอง" />
       <h1 className="text-xl font-bold text-gray-900">แก้ไขการจอง</h1>
       <BookingForm
         bookingId={b.bookingId}

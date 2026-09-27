@@ -5,10 +5,11 @@ import Avatar from "@/components/Avatar";
 import DateNav from "@/components/DateNav";
 import EmptyState from "@/components/EmptyState";
 import SkeletonList from "@/components/SkeletonList";
+import BackButton from "@/components/BackButton";
 import { Bone } from "@/components/Skeletons";
 import { requireSession } from "@/lib/auth";
-import { getBookingRules, getBookingsOnDate, getRoom } from "@/lib/data";
-import { freeSlots, isDateStr, timeOf, todayStr } from "@/lib/datetime";
+import { getBookingsOnDate, getRoom } from "@/lib/data";
+import { isDateStr, timeOf, todayStr } from "@/lib/datetime";
 import { fullName } from "@/lib/format";
 import type { Room } from "@/types/types";
 
@@ -22,11 +23,9 @@ export default async function RoomDetailPage({ params, searchParams }: PageProps
 
   return (
     <div className="space-y-4">
+      <BackButton href="/rooms" label="ห้องทั้งหมด" />
       <div>
-        <Link href="/rooms" className="text-sm text-blue-600">
-          ‹ ห้องทั้งหมด
-        </Link>
-        <h1 className="text-xl font-bold text-gray-900 mt-1">{room.name}</h1>
+        <h1 className="text-xl font-bold text-gray-900">{room.name}</h1>
         <div className="text-sm text-gray-500">
           {room.location ?? "-"} • {room.capacity} ที่นั่ง {!room.active && "• ปิดให้บริการ"}
         </div>
@@ -52,44 +51,17 @@ function DaySkeleton() {
   return (
     <div className="space-y-4">
       <Bone className="h-5 w-40" />
-      <div className="flex gap-2">
-        {[0, 1, 2].map((i) => (
-          <Bone key={i} className="h-8 w-24 rounded-full" />
-        ))}
-      </div>
       <SkeletonList count={3} showUser />
     </div>
   );
 }
 
 async function RoomDay({ room, date, userId }: { room: Room; date: string; userId: string }) {
-  const [bookings, rules] = await Promise.all([getBookingsOnDate(date, room.roomId), getBookingRules()]);
-  const slots = room.active ? freeSlots(bookings, date, rules.openTime, rules.closeTime) : [];
+  const bookings = await getBookingsOnDate(date, room.roomId);
   const now = new Date();
 
   return (
     <>
-      {room.active && (
-        <section>
-          <h2 className="font-semibold text-gray-900 mb-2">ช่วงเวลาว่าง (แตะเพื่อจอง)</h2>
-          {slots.length === 0 ? (
-            <EmptyState>ไม่มีช่วงเวลาว่างในวันนี้</EmptyState>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {slots.map((s) => (
-                <Link
-                  key={s.start}
-                  href={`/book?roomId=${room.roomId}&date=${date}&start=${s.start}&end=${s.end}`}
-                  className="text-sm px-3 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                >
-                  {s.start}-{s.end}
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
       <section>
         <h2 className="font-semibold text-gray-900 mb-2">ตารางการจอง ({bookings.length})</h2>
         {bookings.length === 0 ? (

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import BackButton from "@/components/BackButton";
 import QuickBook from "@/components/QuickBook";
 import { requireSession } from "@/lib/auth";
 import { getBookingRules, getBookingsOnDate, getRooms } from "@/lib/data";
@@ -11,11 +11,9 @@ export default async function QuickBookPage() {
 
   return (
     <div className="space-y-4">
+      <BackButton href="/book" label="จองแบบระบุเวลา" />
       <div>
-        <Link href="/book" className="text-sm text-blue-600">
-          ‹ จองแบบระบุเวลา
-        </Link>
-        <h1 className="text-xl font-bold text-gray-900 mt-1">⚡ จองด่วน</h1>
+        <h1 className="text-xl font-bold text-gray-900">⚡ จองด่วน</h1>
         <p className="text-sm text-gray-500">ใช้ห้องตั้งแต่ตอนนี้ เลือกระยะเวลาแล้วกดจองได้เลย</p>
       </div>
       <QuickBook

@@ -1,9 +1,10 @@
+import { BackButtonSkeleton } from "@/components/BackButton";
 import { Bone } from "@/components/Skeletons";
 
 export default function Loading() {
   return (
     <div className="space-y-4">
-      <Bone className="h-4 w-12" />
+      <BackButtonSkeleton />
       <div className="card p-5 space-y-4 animate-pulse">
         <div className="flex justify-between">
           <div className="h-6 w-2/3 bg-gray-300 rounded" />

@@ -6,6 +6,7 @@ import type { User } from "@/types/types";
 import { getIDTokenLiff, getLiffUserId, initLiff } from "@/lib/liff";
 import { LIFF_ID } from "@/lib/config";
 import { loginWithLine } from "@/actions/auth";
+import { withTimeout } from "@/lib/async";
 
 type Phase = "init" | "login" | "ready" | "error";
 
@@ -24,7 +25,6 @@ export default function AppProvider({ initialUser, children }: { initialUser: Us
   const [phase, setPhase] = useState<Phase>("init");
   const [error, setError] = useState("");
   const [user, setUser] = useState<User | null>(initialUser);
-  const [tick, setTick] = useState(0);
 
   // ให้ bootstrap อ่าน user ล่าสุดได้ตอนกดลองใหม่ โดยไม่ต้องใส่ user ใน deps
   const userRef = useRef(user);
@@ -52,7 +52,7 @@ export default function AppProvider({ initialUser, children }: { initialUser: Us
         const idToken = getIDTokenLiff();
         if (!idToken) return; // กำลัง redirect ไป LINE login
 
-        const res = await loginWithLine(idToken);
+        const res = await withTimeout(loginWithLine(idToken), 20_000, "เข้าสู่ระบบนานเกินไป กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่");
         const pathname = window.location.pathname;
 
         if (res.status === "ok") {
@@ -76,7 +76,16 @@ export default function AppProvider({ initialUser, children }: { initialUser: Us
     }
 
     bootstrap();
-  }, [tick, router]);
+  }, [router]);
+
+  // LINE อาจคืนหน้าเดิมจาก cache (bfcache) ตอนเปิด LIFF ใหม่ งานที่ค้างอยู่จะไม่ทำต่อ → โหลดหน้าใหม่
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) window.location.reload();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   return (
     <AppContext.Provider
@@ -86,7 +95,8 @@ export default function AppProvider({ initialUser, children }: { initialUser: Us
         error,
         user,
         setUser,
-        retry: () => setTick((n) => n + 1)
+        // โหลดหน้าใหม่ทั้งหมด ชัวร์กว่าลองซ้ำใน state เดิม (promise ที่ค้างจะหายไปด้วย)
+        retry: () => window.location.reload()
       }}
     >
       {children}

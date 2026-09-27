@@ -1,8 +1,10 @@
+import { BackButtonSkeleton } from "@/components/BackButton";
 import { Bone, CardSkeleton, TitleSkeleton } from "@/components/Skeletons";
 
 export default function Loading() {
   return (
     <div className="space-y-4">
+      <BackButtonSkeleton />
       <TitleSkeleton />
       <div className="card p-4 space-y-3">
         <Bone className="h-4 w-24" />

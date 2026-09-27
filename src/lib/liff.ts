@@ -1,11 +1,19 @@
 // Library
 import liff from "@line/liff";
+import { withTimeout } from "./async";
 
 let initPromise: Promise<void> | null = null;
 
+const INIT_TIMEOUT_MS = 15_000;
+
 export function initLiff(liffId: string): Promise<void> {
   if (!initPromise) {
-    initPromise = liff.init({ liffId, withLoginOnExternalBrowser: true }).catch((error) => {
+    // ถ้า liff.init กำลังพาไปหน้า login / liff.state หน้าจะเปลี่ยนเองก่อนหมดเวลา
+    initPromise = withTimeout(
+      liff.init({ liffId, withLoginOnExternalBrowser: true }),
+      INIT_TIMEOUT_MS,
+      "เชื่อมต่อ LINE ไม่สำเร็จ (หมดเวลา) กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่"
+    ).catch((error) => {
       initPromise = null; // ให้กดลองใหม่ได้
       throw error;
     });
@@ -21,6 +29,8 @@ export function getLiffUserId(): string | null {
 /** คืน ID token ที่ยังไม่หมดอายุ หรือ null ถ้ากำลัง redirect ไป login */
 export function getIDTokenLiff(): string | null {
   if (!liff.isLoggedIn()) {
+    // ใน LINE app ใช้ liff.login() ไม่ได้ ถ้าปล่อยไว้หน้าจะค้าง → แจ้ง error แทน
+    if (liff.isInClient()) throw new Error("ไม่พบการเข้าสู่ระบบ LINE กรุณาปิดแล้วเปิดใหม่อีกครั้ง");
     liff.login();
     return null;
   }

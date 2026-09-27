@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Avatar from "@/components/Avatar";
+import BackButton from "@/components/BackButton";
 import CancelBookingButton from "@/components/CancelBookingButton";
 import ShareBookingButton from "@/components/ShareBookingButton";
 import { requireSession } from "@/lib/auth";
@@ -42,9 +43,7 @@ export default async function BookingDetailPage({ params }: PageProps<"/book/[bo
 
   return (
     <div className="space-y-4">
-      <Link href={b.room ? `/rooms/${b.roomId}?date=${date}` : "/mine"} className="text-sm text-blue-600">
-        ‹ กลับ
-      </Link>
+      <BackButton href={`/rooms/${b.roomId}?date=${date}`} label={b.room?.name ?? "กลับ"} />
 
       <div className="card p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">

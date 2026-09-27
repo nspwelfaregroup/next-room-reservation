@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import Avatar from "@/components/Avatar";
 import BookingCard from "@/components/BookingCard";
 import EmptyState from "@/components/EmptyState";
+import RefreshWhenUserReady from "@/components/RefreshWhenUserReady";
 import SkeletonList from "@/components/SkeletonList";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingsOnDate, getMyBookings } from "@/lib/data";
@@ -14,8 +15,8 @@ import { fullName } from "@/lib/format";
 export default async function Home() {
   const user = await getCurrentUser();
 
-  // เปิดครั้งแรกยังไม่มี cookie → AppProvider จะ login แล้ว refresh หน้านี้ให้เอง
-  if (!user) return <SkeletonList count={4} />;
+  // ยังไม่มี cookie (เปิดครั้งแรก / cookie หมดอายุ) → รอ AppProvider login เสร็จแล้ว refresh หน้านี้
+  if (!user) return <RefreshWhenUserReady count={4} />;
 
   const today = todayStr();
 

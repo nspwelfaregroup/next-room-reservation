@@ -31,5 +31,6 @@ export default function Bootstrapping({ children }: { children: React.ReactNode 
   // ยังไม่ลงทะเบียน → เข้าได้แค่หน้า /register หลัง LIFF พร้อม ที่เหลือรอ redirect
   if (phase === "ready" && pathname === "/register") return <>{children}</>;
 
-  return <LoadingScreen text={PHASE_TEXT[phase] || "กำลังโหลด..."} />;
+  // detail ช่วยบอกว่าค้างที่ขั้นไหน (แสดงเมื่อโหลดนานเกิน 10 วินาที)
+  return <LoadingScreen text={PHASE_TEXT[phase] || "กำลังโหลด..."} detail={`phase: ${phase} • ${pathname}`} />;
 }
