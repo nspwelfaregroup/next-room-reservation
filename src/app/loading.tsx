@@ -1,5 +1,6 @@
 import SkeletonList from "@/components/SkeletonList";
 import { Bone } from "@/components/Skeletons";
+import SlowReloadHint from "@/components/SlowReloadHint";
 
 // loading.tsx = Suspense fallback ของทั้ง route — Next แสดงทันทีตอนกดเปลี่ยนหน้า ระหว่างรอ server
 export default function Loading() {
@@ -26,6 +27,7 @@ export default function Loading() {
         <Bone className="h-5 w-40" />
         <SkeletonList count={3} showUser />
       </section>
+      <SlowReloadHint tag="route-loading" />
     </div>
   );
 }
