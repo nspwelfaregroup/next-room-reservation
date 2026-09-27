@@ -1,6 +1,5 @@
 "use server";
 
-import { refresh } from "next/cache";
 import { verifyLineIdToken } from "@/lib/line";
 import { setSession } from "@/lib/session";
 import { findUserById } from "@/lib/auth";
@@ -26,7 +25,8 @@ export async function loginWithLine(idToken: string): Promise<LoginResult> {
       if (!error) user = { ...user, ...patch };
     }
 
-    refresh(); // ให้ Server Component (เช่นหน้าแรก) render ใหม่ด้วย cookie ใหม่
+    // ไม่เรียก refresh() ที่นี่ — หน้าแรกสั่ง router.refresh() เองใน RefreshWhenUserReady
+    // ถ้า refresh สองทางพร้อมกัน request แรกจะถูกยกเลิกกลางคัน ส่วน Suspense ที่รอข้อมูลจาก stream นั้นจะค้าง skeleton ตลอด
     return user ? { status: "ok", user } : { status: "unregistered" };
   } catch (error) {
     console.error(error);
@@ -57,8 +57,8 @@ export async function registerUser(idToken: string, input: ProfileInput): Promis
     const user = await findUserById(line.lineUserId);
     if (!user) throw new Error("insert user failed");
 
+    // ไม่ refresh() ที่นี่ — ฟอร์มจะ router.replace("/") ต่อทันที (กันการโหลดสองทางชนกัน)
     await setSession({ userId: user.userId, registered: true });
-    refresh();
     return { ok: true, data: user };
   } catch (error) {
     console.error(error);

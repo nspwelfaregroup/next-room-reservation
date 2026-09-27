@@ -5,7 +5,7 @@ import Avatar from "@/components/Avatar";
 import BookingCard from "@/components/BookingCard";
 import EmptyState from "@/components/EmptyState";
 import RefreshWhenUserReady from "@/components/RefreshWhenUserReady";
-import SkeletonList from "@/components/SkeletonList";
+import SelfHealingFallback from "@/components/SelfHealingFallback";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingsOnDate, getMyBookings } from "@/lib/data";
 import { fmtDate, todayStr } from "@/lib/datetime";
@@ -49,7 +49,7 @@ export default async function Home() {
           </Link>
         </div>
         {/* Suspense: แสดง skeleton ระหว่างรอ query แล้วค่อย stream ผลลัพธ์ตามมา */}
-        <Suspense fallback={<SkeletonList count={2} />}>
+        <Suspense fallback={<SelfHealingFallback count={2} tag="home-upcoming" />}>
           <MyUpcoming userId={user.userId} />
         </Suspense>
       </section>
@@ -61,7 +61,7 @@ export default async function Home() {
             ตารางรวม →
           </Link>
         </div>
-        <Suspense fallback={<SkeletonList count={3} showUser />}>
+        <Suspense fallback={<SelfHealingFallback count={3} showUser tag="home-today" />}>
           <TodayBookings date={today} />
         </Suspense>
       </section>
