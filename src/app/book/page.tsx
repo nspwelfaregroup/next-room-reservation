@@ -1,14 +1,13 @@
+import Link from "next/link";
 import BookingForm from "@/components/BookingForm";
 import EmptyState from "@/components/EmptyState";
-import { requireUser } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { getBookingRules, getRooms } from "@/lib/data";
 import { addDays, isDateStr, isTimeStr, todayStr } from "@/lib/datetime";
 
 /** หน้าจองใหม่ — รับค่าตั้งต้นจาก URL ได้ เช่น /book?roomId=...&date=2026-09-30&start=09:00&end=10:00 */
 export default async function BookPage({ searchParams }: PageProps<"/book">) {
-  await requireUser();
-  const sp = await searchParams;
-  const [rooms, rules] = await Promise.all([getRooms(), getBookingRules()]);
+  const [, sp, rooms, rules] = await Promise.all([requireSession(), searchParams, getRooms(), getBookingRules()]);
 
   if (rooms.length === 0) return <EmptyState>ยังไม่มีห้องที่เปิดให้จอง</EmptyState>;
 
@@ -21,6 +20,14 @@ export default async function BookPage({ searchParams }: PageProps<"/book">) {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-gray-900">จองห้องประชุม</h1>
+      <Link href="/book/quick" className="card p-3 flex items-center gap-3 border-amber-200 bg-amber-50 hover:bg-amber-100 transition">
+        <span className="text-2xl">⚡</span>
+        <span className="flex-1 text-sm">
+          <span className="block font-semibold text-amber-900">ต้องการใช้ห้องตอนนี้?</span>
+          <span className="text-amber-700">จองด่วน เลือกห้องว่างได้ในแตะเดียว</span>
+        </span>
+        <span className="text-amber-600">›</span>
+      </Link>
       <BookingForm
         rooms={rooms}
         rules={rules}

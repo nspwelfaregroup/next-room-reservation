@@ -6,8 +6,7 @@ import { fmtDate, dateOf } from "@/lib/datetime";
 import { fullName } from "@/lib/format";
 
 export default async function MePage() {
-  const me = await requireUser();
-  const departments = await getDepartments();
+  const [me, departments] = await Promise.all([requireUser(), getDepartments()]);
 
   return (
     <div className="space-y-4">

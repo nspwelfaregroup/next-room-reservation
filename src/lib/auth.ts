@@ -32,9 +32,19 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
   }
 });
 
-/** ใช้ในหน้าที่ต้องลงทะเบียนแล้วเท่านั้น (proxy กันไว้ชั้นแรกแล้ว อันนี้กันซ้ำจาก DB จริง) */
+/** ใช้ในหน้าที่ต้องการข้อมูล user เต็ม (ชื่อ แผนก) — query DB 1 ครั้ง */
 export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
   if (!user) redirect("/");
   return user;
+}
+
+/**
+ * ใช้ในหน้าที่ต้องการแค่ userId — อ่านจาก JWT ใน cookie อย่างเดียว ไม่แตะ DB จึงเร็วกว่า
+ * (หน้าแสดงผลใช้ได้ ส่วน Server Action ที่เขียนข้อมูลยังใช้ getCurrentUser() ตรวจกับ DB)
+ */
+export async function requireSession(): Promise<{ userId: string }> {
+  const session = await getSession();
+  if (!session?.registered) redirect("/");
+  return { userId: session.userId };
 }

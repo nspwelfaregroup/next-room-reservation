@@ -2,14 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Avatar from "@/components/Avatar";
 import CancelBookingButton from "@/components/CancelBookingButton";
-import { requireUser } from "@/lib/auth";
+import ShareBookingButton from "@/components/ShareBookingButton";
+import { requireSession } from "@/lib/auth";
 import { getBooking } from "@/lib/data";
 import { dateOf, fmtDate, timeOf } from "@/lib/datetime";
 import { fullName } from "@/lib/format";
 
 export default async function BookingDetailPage({ params }: PageProps<"/book/[bookId]">) {
-  const me = await requireUser();
-  const { bookId } = await params;
+  const [me, { bookId }] = await Promise.all([requireSession(), params]);
 
   const b = await getBooking(bookId);
   if (!b) notFound();
@@ -20,6 +20,16 @@ export default async function BookingDetailPage({ params }: PageProps<"/book/[bo
   const started = new Date(b.startAt) <= now;
   const ended = new Date(b.endAt) <= now;
   const date = dateOf(b.startAt);
+
+  // ข้อมูลสรุปสำหรับการ์ด LINE (แชร์ / ยกเลิก)
+  const summary = {
+    bookingId: b.bookingId,
+    title: b.title ?? "",
+    roomName: b.room?.name ?? "-",
+    date,
+    startTime: timeOf(b.startAt),
+    endTime: timeOf(b.endAt)
+  };
 
   const statusLabel = !isActive ? "ยกเลิกแล้ว" : ended ? "สิ้นสุดแล้ว" : started ? "กำลังประชุม" : "กำลังจะถึง";
   const statusTone = !isActive
@@ -76,24 +86,17 @@ export default async function BookingDetailPage({ params }: PageProps<"/book/[bo
       </div>
 
       {isOwner && isActive && !ended && (
-        <div className="flex gap-2">
-          {!started && (
-            <Link href={`/book/${b.bookingId}/edit`} className="btn btn-outline flex-1">
-              ✏️ แก้ไข
-            </Link>
-          )}
-          <CancelBookingButton
-            className="flex-1"
-            booking={{
-              bookingId: b.bookingId,
-              title: b.title ?? "",
-              roomName: b.room?.name ?? "-",
-              date,
-              startTime: timeOf(b.startAt),
-              endTime: timeOf(b.endAt)
-            }}
-          />
-        </div>
+        <>
+          <ShareBookingButton className="w-full" booking={{ ...summary, organizer: fullName(b.user), notes: b.notes }} />
+          <div className="flex gap-2">
+            {!started && (
+              <Link href={`/book/${b.bookingId}/edit`} className="btn btn-outline flex-1">
+                ✏️ แก้ไข
+              </Link>
+            )}
+            <CancelBookingButton className="flex-1" booking={summary} />
+          </div>
+        </>
       )}
 
       {isActive && !ended && (

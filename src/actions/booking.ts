@@ -3,8 +3,9 @@
 import { refresh } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getActiveBookingsBetween, getBooking, getBookingRules, getBookingsOnDate, getRoom, isUuid } from "@/lib/data";
-import { addDays, isDateStr, isTimeStr, timeOf, toInstant, todayStr } from "@/lib/datetime";
+import { addDays, isDateStr, isTimeStr, minToTime, minuteOfDay, timeOf, timeToMin, toInstant, todayStr } from "@/lib/datetime";
 import { fullName } from "@/lib/format";
+import { QUICK_DURATIONS } from "@/lib/constants";
 import { supabaseAdmin } from "@/utils/supabase/admin";
 import { text } from "./validate";
 import type { ActionResult, Booking, User } from "@/types/types";
@@ -34,8 +35,15 @@ function conflictMessage(b: Booking) {
   return `ช่วงเวลานี้ถูกจองแล้ว: "${b.title ?? "-"}" ${timeOf(b.startAt)}-${timeOf(b.endAt)} น. โดย ${fullName(b.user)}`;
 }
 
-/** ตรวจข้อมูลการจองทั้งหมดฝั่ง server — excludeBookingId ใช้ตอนแก้ไข (ไม่นับตัวเอง) */
-async function validateBooking(input: BookingInput, excludeBookingId?: string): Promise<ActionResult<BookingRow>> {
+/**
+ * ตรวจข้อมูลการจองทั้งหมดฝั่ง server
+ * - excludeBookingId: ใช้ตอนแก้ไข (ไม่นับตัวเองเป็นเวลาทับ)
+ * - graceMinutes: ยอมให้เวลาเริ่มย้อนหลังได้กี่นาที (จองด่วนเริ่ม "ตอนนี้")
+ */
+async function validateBooking(
+  input: BookingInput,
+  { excludeBookingId, graceMinutes = 0 }: { excludeBookingId?: string; graceMinutes?: number } = {}
+): Promise<ActionResult<BookingRow>> {
   const { roomId, date, startTime, endTime } = input ?? {};
   if (!isUuid(roomId)) return { ok: false, error: "กรุณาเลือกห้อง" };
   if (!isDateStr(date)) return { ok: false, error: "วันที่ไม่ถูกต้อง" };
@@ -54,7 +62,7 @@ async function validateBooking(input: BookingInput, excludeBookingId?: string): 
 
   const startAt = toInstant(date, startTime);
   const endAt = toInstant(date, endTime);
-  if (startAt <= new Date()) return { ok: false, error: "ไม่สามารถจองเวลาที่ผ่านไปแล้ว" };
+  if (startAt.getTime() <= Date.now() - graceMinutes * 60_000) return { ok: false, error: "ไม่สามารถจองเวลาที่ผ่านไปแล้ว" };
 
   const title = text(input.title, 200);
   if (!title) return { ok: false, error: "กรุณากรอกหัวข้อการประชุม" };
@@ -106,10 +114,14 @@ export async function createBooking(input: BookingInput): Promise<ActionResult<{
   const valid = await validateBooking(input);
   if (!valid.ok) return valid;
 
+  return insertBooking(valid.data, me.userId);
+}
+
+async function insertBooking(row: BookingRow, userId: string): Promise<ActionResult<{ bookingId: string }>> {
   const now = new Date().toISOString();
   const { data, error } = await supabaseAdmin
     .from("bookings")
-    .insert({ ...valid.data, userId: me.userId, status: "ACTIVE", createdAt: now, updatedAt: now })
+    .insert({ ...row, userId, status: "ACTIVE", createdAt: now, updatedAt: now })
     .select("bookingId")
     .single();
   if (error) return dbError(error);
@@ -126,7 +138,7 @@ export async function updateBooking(bookingId: string, input: BookingInput): Pro
   if (!own.ok) return own;
   if (new Date(own.data.startAt) <= new Date()) return { ok: false, error: "การประชุมเริ่มไปแล้ว แก้ไขไม่ได้" };
 
-  const valid = await validateBooking(input, bookingId);
+  const valid = await validateBooking(input, { excludeBookingId: bookingId });
   if (!valid.ok) return valid;
 
   const { error } = await supabaseAdmin
@@ -171,4 +183,47 @@ export async function getRoomSchedule(roomId: string, date: string): Promise<Act
     console.error(error);
     return { ok: false, error: "โหลดตารางห้องไม่สำเร็จ" };
   }
+}
+
+export type QuickBookResult = { bookingId: string; date: string; startTime: string; endTime: string };
+
+/**
+ * จองด่วน: เริ่มตอนนี้ (ปัดลงเป็นช่วง 5 นาที) นาน minutes นาที
+ * ถ้ามีคนจองต่อจากนี้ไม่ถึง minutes นาที จะจองให้ถึงก่อนการจองถัดไป (ขั้นต่ำ 15 นาที)
+ * server คำนวณเวลาเอง ไม่เชื่อเวลาจาก browser
+ */
+export async function quickBook(roomId: string, minutes: number, title: string): Promise<ActionResult<QuickBookResult>> {
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "กรุณาเข้าสู่ระบบใหม่" };
+  if (!isUuid(roomId)) return { ok: false, error: "กรุณาเลือกห้อง" };
+  if (!(QUICK_DURATIONS as readonly number[]).includes(minutes)) return { ok: false, error: "ระยะเวลาไม่ถูกต้อง" };
+
+  const rules = await getBookingRules();
+  const now = new Date();
+  const date = todayStr(now);
+  const startMin = Math.floor(minuteOfDay(now, date) / 5) * 5;
+  let endMin = Math.min(startMin + minutes, timeToMin(rules.closeTime));
+
+  // ตัดเวลาจบให้ถึงก่อนการจองถัดไป
+  const start = toInstant(date, minToTime(startMin));
+  const upcoming = await getActiveBookingsBetween(start.toISOString(), toInstant(date, minToTime(endMin)).toISOString(), roomId);
+  if (upcoming.some((b) => new Date(b.startAt) <= start)) return { ok: false, error: "ห้องนี้ไม่ว่างในตอนนี้" };
+  if (upcoming.length > 0) endMin = Math.min(endMin, ...upcoming.map((b) => minuteOfDay(b.startAt, date)));
+  if (endMin - startMin < 15) return { ok: false, error: "ห้องนี้ว่างไม่ถึง 15 นาที" };
+
+  const input: BookingInput = {
+    roomId,
+    date,
+    startTime: minToTime(startMin),
+    endTime: minToTime(endMin),
+    title: text(title, 200) || "ประชุมด่วน",
+    attendees: 1,
+    notes: ""
+  };
+  const valid = await validateBooking(input, { graceMinutes: 5 });
+  if (!valid.ok) return valid;
+
+  const res = await insertBooking(valid.data, me.userId);
+  if (!res.ok) return res;
+  return { ok: true, data: { bookingId: res.data.bookingId, date, startTime: input.startTime, endTime: input.endTime } };
 }

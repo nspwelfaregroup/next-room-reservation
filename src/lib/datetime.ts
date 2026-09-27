@@ -69,6 +69,24 @@ export function overlaps(aStart: string | Date, aEnd: string | Date, bStart: str
   return new Date(aStart) < new Date(bEnd) && new Date(bStart) < new Date(aEnd);
 }
 
+/** "HH:mm" → นาทีนับจากเที่ยงคืน */
+export function timeToMin(t: string): number {
+  return Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+}
+
+/** นาทีนับจากเที่ยงคืน → "HH:mm" */
+export function minToTime(m: number): string {
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/** เวลา ISO เป็นนาทีที่เท่าไหร่ของวัน date (ก่อนวันนั้น = 0, หลังวันนั้น = 1440) */
+export function minuteOfDay(iso: string | Date, date: string): number {
+  const d = typeof iso === "string" ? iso : iso.toISOString();
+  if (dateOf(d) < date) return 0;
+  if (dateOf(d) > date) return 24 * 60;
+  return timeToMin(timeOf(d));
+}
+
 /**
  * หาช่วงว่างของห้องในวันหนึ่ง ภายในเวลาเปิด-ปิด
  * ถ้าเป็นวันนี้จะตัดเวลาที่ผ่านไปแล้วออก (ปัดขึ้นเป็นช่วง 15 นาที)
@@ -80,29 +98,21 @@ export function freeSlots(
   closeTime: string,
   now: Date = new Date()
 ): { start: string; end: string }[] {
-  const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-  const toTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-  const minOfIso = (iso: string) => {
-    if (dateOf(iso) < date) return 0;
-    if (dateOf(iso) > date) return 24 * 60;
-    return toMin(timeOf(iso));
-  };
-
-  let cursor = toMin(openTime);
-  const close = toMin(closeTime);
+  let cursor = timeToMin(openTime);
+  const close = timeToMin(closeTime);
 
   const today = todayStr(now);
   if (date < today) return [];
-  if (date === today) cursor = Math.max(cursor, Math.ceil(toMin(timeOf(now.toISOString())) / 15) * 15);
+  if (date === today) cursor = Math.max(cursor, Math.ceil(minuteOfDay(now, date) / 15) * 15);
 
-  const busy = bookings.map((b) => [minOfIso(b.startAt), minOfIso(b.endAt)] as const).sort((a, b) => a[0] - b[0]);
+  const busy = bookings.map((b) => [minuteOfDay(b.startAt, date), minuteOfDay(b.endAt, date)] as const).sort((a, b) => a[0] - b[0]);
 
   const slots: { start: string; end: string }[] = [];
   for (const [s, e] of busy) {
-    if (s > cursor && cursor < close) slots.push({ start: toTime(cursor), end: toTime(Math.min(s, close)) });
+    if (s > cursor && cursor < close) slots.push({ start: minToTime(cursor), end: minToTime(Math.min(s, close)) });
     cursor = Math.max(cursor, e);
   }
-  if (cursor < close) slots.push({ start: toTime(cursor), end: toTime(close) });
+  if (cursor < close) slots.push({ start: minToTime(cursor), end: minToTime(close) });
 
-  return slots.filter((s) => toMin(s.end) - toMin(s.start) >= 15);
+  return slots.filter((s) => timeToMin(s.end) - timeToMin(s.start) >= 15);
 }

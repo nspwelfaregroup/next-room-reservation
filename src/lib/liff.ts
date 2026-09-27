@@ -70,6 +70,23 @@ export async function sendChatMessages(messages: Parameters<typeof liff.sendMess
   }
 }
 
+export type ShareResult = "sent" | "cancelled" | "unavailable" | "failed";
+
+/**
+ * เปิดหน้าเลือกเพื่อน/กลุ่มของ LINE แล้วส่งข้อความในนามผู้ใช้ (ไม่นับโควตา Messaging API)
+ * ต้องเปิด shareTargetPicker ใน LINE Developers Console → LIFF app ก่อน
+ */
+export async function shareMessages(messages: Parameters<typeof liff.shareTargetPicker>[0]): Promise<ShareResult> {
+  try {
+    if (!liff.isApiAvailable("shareTargetPicker")) return "unavailable";
+    const res = await liff.shareTargetPicker(messages, { isMultiple: true });
+    return res ? "sent" : "cancelled"; // null = ผู้ใช้กดปิดหน้าเลือกเอง
+  } catch (error) {
+    console.error("liff.shareTargetPicker failed", error);
+    return "failed";
+  }
+}
+
 export function closeLiff() {
   try {
     if (liff.isInClient()) liff.closeWindow();

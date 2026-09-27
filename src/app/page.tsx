@@ -30,9 +30,14 @@ export default async function Home() {
             {user.departmentName && <div className="text-xs opacity-80 truncate">แผนก{user.departmentName}</div>}
           </div>
         </div>
-        <Link href="/book" className="inline-block mt-4 bg-white text-blue-700 px-4 py-2 rounded-full font-medium text-sm shadow">
-          + จองห้องประชุม
-        </Link>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <Link href="/book" className="bg-white text-blue-700 px-4 py-2 rounded-full font-medium text-sm shadow">
+            + จองห้องประชุม
+          </Link>
+          <Link href="/book/quick" className="bg-amber-400 text-amber-950 px-4 py-2 rounded-full font-medium text-sm shadow">
+            ⚡ จองด่วน
+          </Link>
+        </div>
       </div>
 
       <section>
@@ -51,8 +56,8 @@ export default async function Home() {
       <section>
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-gray-900">การจองวันนี้ • {fmtDate(today)}</h2>
-          <Link href="/rooms" className="text-xs text-blue-600">
-            ดูห้อง →
+          <Link href="/schedule" className="text-xs text-blue-600">
+            ตารางรวม →
           </Link>
         </div>
         <Suspense fallback={<SkeletonList count={3} showUser />}>

@@ -1,26 +1,24 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Avatar from "@/components/Avatar";
 import DateNav from "@/components/DateNav";
 import EmptyState from "@/components/EmptyState";
-import { requireUser } from "@/lib/auth";
+import SkeletonList from "@/components/SkeletonList";
+import { Bone } from "@/components/Skeletons";
+import { requireSession } from "@/lib/auth";
 import { getBookingRules, getBookingsOnDate, getRoom } from "@/lib/data";
 import { freeSlots, isDateStr, timeOf, todayStr } from "@/lib/datetime";
 import { fullName } from "@/lib/format";
+import type { Room } from "@/types/types";
 
 // Next 16: params และ searchParams เป็น Promise ต้อง await ก่อนใช้
 export default async function RoomDetailPage({ params, searchParams }: PageProps<"/rooms/[roomId]">) {
-  const me = await requireUser();
-  const { roomId } = await params;
-  const { date: dateParam } = await searchParams;
+  const [{ userId }, { roomId }, { date: dateParam }] = await Promise.all([requireSession(), params, searchParams]);
   const date = isDateStr(dateParam) ? dateParam : todayStr();
 
   const room = await getRoom(roomId);
   if (!room) notFound();
-
-  const [bookings, rules] = await Promise.all([getBookingsOnDate(date, roomId), getBookingRules()]);
-  const slots = room.active ? freeSlots(bookings, date, rules.openTime, rules.closeTime) : [];
-  const now = new Date();
 
   return (
     <div className="space-y-4">
@@ -36,6 +34,41 @@ export default async function RoomDetailPage({ params, searchParams }: PageProps
 
       <DateNav basePath={`/rooms/${roomId}`} date={date} />
 
+      {/* key={date}: เปลี่ยนวัน = แสดง skeleton ทันที แล้วค่อยใส่ตารางของวันใหม่ */}
+      <Suspense key={date} fallback={<DaySkeleton />}>
+        <RoomDay room={room} date={date} userId={userId} />
+      </Suspense>
+
+      {room.active && (
+        <Link href={`/book?roomId=${roomId}&date=${date}`} className="btn btn-primary w-full">
+          + จองห้องนี้
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function DaySkeleton() {
+  return (
+    <div className="space-y-4">
+      <Bone className="h-5 w-40" />
+      <div className="flex gap-2">
+        {[0, 1, 2].map((i) => (
+          <Bone key={i} className="h-8 w-24 rounded-full" />
+        ))}
+      </div>
+      <SkeletonList count={3} showUser />
+    </div>
+  );
+}
+
+async function RoomDay({ room, date, userId }: { room: Room; date: string; userId: string }) {
+  const [bookings, rules] = await Promise.all([getBookingsOnDate(date, room.roomId), getBookingRules()]);
+  const slots = room.active ? freeSlots(bookings, date, rules.openTime, rules.closeTime) : [];
+  const now = new Date();
+
+  return (
+    <>
       {room.active && (
         <section>
           <h2 className="font-semibold text-gray-900 mb-2">ช่วงเวลาว่าง (แตะเพื่อจอง)</h2>
@@ -46,7 +79,7 @@ export default async function RoomDetailPage({ params, searchParams }: PageProps
               {slots.map((s) => (
                 <Link
                   key={s.start}
-                  href={`/book?roomId=${roomId}&date=${date}&start=${s.start}&end=${s.end}`}
+                  href={`/book?roomId=${room.roomId}&date=${date}&start=${s.start}&end=${s.end}`}
                   className="text-sm px-3 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                 >
                   {s.start}-{s.end}
@@ -65,7 +98,7 @@ export default async function RoomDetailPage({ params, searchParams }: PageProps
           <div className="space-y-2">
             {bookings.map((b) => {
               const live = new Date(b.startAt) <= now && now < new Date(b.endAt);
-              const mine = b.userId === me.userId;
+              const mine = b.userId === userId;
               return (
                 <Link key={b.bookingId} href={`/book/${b.bookingId}`} className="card p-3 flex gap-3 items-center hover:shadow-md transition">
                   <div className="w-16 shrink-0 text-center">
@@ -91,12 +124,6 @@ export default async function RoomDetailPage({ params, searchParams }: PageProps
           </div>
         )}
       </section>
-
-      {room.active && (
-        <Link href={`/book?roomId=${roomId}&date=${date}`} className="btn btn-primary w-full">
-          + จองห้องนี้
-        </Link>
-      )}
-    </div>
+    </>
   );
 }

@@ -11,14 +11,17 @@ export type BookingSummary = {
   date: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   endTime: string; // HH:mm
+  organizer?: string; // ชื่อผู้จอง (ใช้ในการ์ดเชิญ)
+  notes?: string | null;
 };
 
-export type BookingEvent = "created" | "updated" | "cancelled";
+export type BookingEvent = "created" | "updated" | "cancelled" | "invite";
 
 const EVENT_STYLE: Record<BookingEvent, { label: string; color: string }> = {
   created: { label: "✅ จองห้องประชุมแล้ว", color: "#1d4ed8" },
   updated: { label: "✏️ แก้ไขการจองแล้ว", color: "#b45309" },
-  cancelled: { label: "❌ ยกเลิกการจองแล้ว", color: "#dc2626" }
+  cancelled: { label: "❌ ยกเลิกการจองแล้ว", color: "#dc2626" },
+  invite: { label: "📅 เชิญเข้าร่วมประชุม", color: "#059669" }
 };
 
 const row = (icon: string, text: string) => ({
@@ -60,7 +63,13 @@ export function bookingCard(event: BookingEvent, b: BookingSummary): Message {
             type: "box",
             layout: "vertical",
             spacing: "xs",
-            contents: [row("🏢", b.roomName), row("📅", fmtDate(b.date)), row("⏰", time)]
+            contents: [
+              row("🏢", b.roomName),
+              row("📅", fmtDate(b.date)),
+              row("⏰", time),
+              ...(b.organizer ? [row("👤", `ผู้จอง: ${b.organizer}`)] : []),
+              ...(b.notes ? [row("📝", b.notes)] : [])
+            ]
           }
         ]
       },

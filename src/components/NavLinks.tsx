@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useLiff } from "@/providers/AppProvider";
+import { LinkPending } from "./TabLinks";
 
 const nav = [
   { to: "/", label: "หน้าแรก", icon: "🏠" },
@@ -15,7 +16,8 @@ const nav = [
 
 function isActive(pathname: string, to: string) {
   if (to === "/") return pathname === "/";
-  if (to === "/book") return pathname === "/book"; // /book/[id] เป็นหน้ารายละเอียด ไม่ใช่หน้าจอง
+  if (to === "/book") return pathname === "/book" || pathname === "/book/quick"; // /book/[id] เป็นหน้ารายละเอียด ไม่ใช่หน้าจอง
+  if (to === "/rooms") return pathname.startsWith("/rooms") || pathname === "/schedule";
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
@@ -48,6 +50,7 @@ function NavLinks() {
               />
               <span className={clsx("leading-none transition-transform duration-200", active ? "text-xl scale-110" : "text-lg")}>{n.icon}</span>
               <span>{n.label}</span>
+              <LinkPending className="absolute top-1.5 right-2 w-2.5 h-2.5 text-blue-600" />
             </Link>
           );
         })}

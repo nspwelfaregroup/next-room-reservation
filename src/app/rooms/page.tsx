@@ -1,13 +1,14 @@
 import Link from "next/link";
 import clsx from "clsx";
 import EmptyState from "@/components/EmptyState";
-import { requireUser } from "@/lib/auth";
+import RoomsViewTabs from "@/components/RoomsViewTabs";
+import { requireSession } from "@/lib/auth";
 import { getBookingsOnDate, getRooms } from "@/lib/data";
 import { timeOf, todayStr } from "@/lib/datetime";
 import type { Booking } from "@/types/types";
 
 export default async function RoomsPage() {
-  await requireUser();
+  await requireSession();
 
   const today = todayStr();
   const [rooms, bookings] = await Promise.all([getRooms(), getBookingsOnDate(today)]);
@@ -19,7 +20,13 @@ export default async function RoomsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-gray-900">ห้องประชุม</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-gray-900">ห้องประชุม</h1>
+        <Link href="/book/quick" className="btn btn-outline py-1.5 text-amber-600">
+          ⚡ จองด่วน
+        </Link>
+      </div>
+      <RoomsViewTabs active="list" />
 
       {rooms.length === 0 && <EmptyState>ยังไม่มีห้องประชุม</EmptyState>}
 
